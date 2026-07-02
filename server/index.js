@@ -135,7 +135,14 @@ function deriveStatus(config, latest) {
 }
 
 async function buildOverview() {
-  const services = await fireJson('/account/services', { apiKey: API_KEY })
+  const res = await fireRequest('/account/services', { apiKey: API_KEY })
+  if (!res.ok || res.json?.status === 'error') {
+    const err = new Error(res.json?.message || `24fire-API antwortete mit HTTP ${res.status}.`)
+    err.status = res.status >= 400 ? res.status : 502
+    throw err
+  }
+  const services = res.json
+
   const kvmList = services?.data?.services?.KVM || []
 
   const servers = await Promise.all(
@@ -175,8 +182,16 @@ api.get(
     if (!API_KEY) {
       return res.status(500).json({ ok: false, status: 'error', message: 'Kein API-Key konfiguriert.' })
     }
-    const data = await cached('overview', 8000, buildOverview)
-    res.json(await data)
+    try {
+      const data = await cached('overview', 8000, buildOverview)
+      res.json(await data)
+    } catch (err) {
+      cache.delete('overview')
+      res.status(err.status || 502).json({
+        status: 'error',
+        message: err.message || 'Fehler beim Laden der Serverübersicht.',
+      })
+    }
   })
 )
 
