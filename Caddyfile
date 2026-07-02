@@ -1,0 +1,8 @@
+# Reverse Proxy mit automatischem HTTPS (Let's Encrypt).
+# Die Domain kommt aus der Umgebungsvariable DOMAIN (siehe .env).
+
+{$DOMAIN} {
+	encode zstd gzip
+	# Leitet inkl. WebSocket (Web-SSH-Konsole) an den Node-Server weiter.
+	reverse_proxy app:3001
+}
