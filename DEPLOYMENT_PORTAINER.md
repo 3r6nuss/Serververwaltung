@@ -9,10 +9,8 @@ normalen `docker-compose.yml` enthaltene Caddy wird dabei nicht verwendet.
 > im Feld **Compose path** exakt `docker-compose.portainer.yml` stehen. Die
 > Portainer-Datei enthält kein `env_file` und benötigt keine hochgeladene `.env`.
 
-> **Fehler `network proxy declared as external, but could not be found`:** Vor dem
-> Stack-Deployment unter Portainer `Networks` ein Bridge-Netzwerk mit dem exakten
-> Namen `proxy` erstellen und danach auch den Nginx-Proxy-Manager-Container damit
-> verbinden. Anschließend den Stack erneut deployen.
+> Die Portainer-Compose-Datei veröffentlicht Port `3001` direkt auf dem Docker-Host.
+> Dadurch ist kein vorher angelegtes externes Docker-Netzwerk erforderlich.
 
 ## Voraussetzungen
 
@@ -39,34 +37,18 @@ git push origin main
 Falls der Branch anders heißt, `main` entsprechend ersetzen. Die lokale `.env` wird
 durch `.gitignore` ausgeschlossen und darf nicht mit Secrets nach GitHub gelangen.
 
-## 1. Gemeinsames Docker-Netzwerk anlegen
+## 1. Erreichbarkeit auf dem Server prüfen
 
-NPM und die Serververwaltung müssen im selben Docker-Netzwerk liegen. In Portainer:
+Die Portainer-Datei veröffentlicht die Anwendung auf Port `3001` des Docker-Servers.
+Nach dem Deployment muss die folgende Adresse im lokalen Netz erreichbar sein:
 
-1. `Networks` öffnen.
-2. `Add network` wählen.
-3. Name `proxy` eintragen.
-4. Driver `bridge` beibehalten und das Netzwerk erstellen.
-5. Unter `Containers` den Nginx-Proxy-Manager-Container öffnen.
-6. Bei `Connected networks` das Netzwerk `proxy` hinzufügen.
-
-Nach einem späteren Redeploy von NPM prüfen, ob der Container weiterhin mit `proxy`
-verbunden ist. Am stabilsten ist es, das externe Netzwerk zusätzlich in dessen Stack
-einzutragen:
-
-```yaml
-services:
-  app:
-    networks:
-      - default
-      - proxy
-
-networks:
-  proxy:
-    external: true
+```text
+http://LAN-IP-DES-SERVERS:3001/api/health
 ```
 
-Der NPM-Dienst kann je nach Stack anders als `app` heißen.
+Beispiel: Hat der Server die LAN-IP `192.168.178.50`, lautet die Adresse
+`http://192.168.178.50:3001/api/health`. Port `3001` muss nicht im Router ins Internet
+weitergeleitet werden. NPM greift innerhalb des Servernetzes darauf zu.
 
 ## 2. Cloudflare-DNS einrichten
 
@@ -129,8 +111,8 @@ nicht in GitHub.
 9. `Deploy the stack` anklicken. Der erste Build kann einige Minuten dauern.
 10. Unter `Containers` warten, bis `serververwaltung` den Status `healthy` erreicht.
 
-Der Container veröffentlicht bewusst keinen Host-Port. NPM erreicht ihn intern über
-das gemeinsame Netzwerk `proxy`.
+Der Container veröffentlicht Host-Port `3001`, damit NPM ihn ohne zusätzliches
+Docker-Netzwerk erreichen kann.
 
 ## 4. Proxy Host in Nginx Proxy Manager
 
@@ -139,7 +121,7 @@ das gemeinsame Netzwerk `proxy`.
 3. Im Bereich `Details` eintragen:
    - Domain Names: `server.example.com`
    - Scheme: `http`
-   - Forward Hostname / IP: `serververwaltung`
+   - Forward Hostname / IP: LAN-IP des Docker-Servers, zum Beispiel `192.168.178.50`
    - Forward Port: `3001`
    - `Block Common Exploits`: aktivieren
    - `Websockets Support`: aktivieren
@@ -186,37 +168,15 @@ Die Meldung
 network proxy declared as external, but could not be found
 ```
 
-bedeutet, dass die richtige Compose-Datei geladen wurde, das gemeinsam verwendete
-Docker-Netzwerk aber noch fehlt.
+bedeutet, dass Portainer noch eine ältere Version von
+`docker-compose.portainer.yml` aus GitHub verwendet. Die aktuelle Datei benötigt
+kein externes Netzwerk mehr und veröffentlicht stattdessen `3001:3001`.
 
-**Über Portainer:**
-
-1. Links `Networks` öffnen.
-2. `Add network` anklicken.
-3. Bei `Name` exakt `proxy` eintragen, nur Kleinbuchstaben und ohne Leerzeichen.
-4. Als Driver `bridge` wählen.
-5. Alle anderen Optionen auf Standard lassen und `Create the network` anklicken.
-6. Unter `Containers` den Nginx-Proxy-Manager-App-Container öffnen.
-7. Im Bereich `Connected networks` das Netzwerk `proxy` auswählen und verbinden.
-8. Den Stack `serververwaltung` erneut deployen.
-
-**Alternativ per SSH auf dem Docker-Server:**
-
-```bash
-docker network create proxy
-docker network ls | grep proxy
-```
-
-Danach muss NPM ebenfalls mit diesem Netzwerk verbunden werden. Der genaue
-Containername ist unter Portainer `Containers` sichtbar:
-
-```bash
-docker network connect proxy NAME_DES_NPM_CONTAINERS
-```
-
-Ist der Container bereits verbunden, meldet Docker nur, dass der Endpoint schon
-existiert. Das ist unproblematisch. Das Netzwerk nicht als `overlay` anlegen; diese
-Anleitung verwendet Portainer mit Docker Standalone und ein `bridge`-Netzwerk.
+1. Die aktuellen Änderungen committen und nach GitHub pushen.
+2. Den fehlgeschlagenen Stack löschen, ohne Volumes zu löschen.
+3. Den Repository-Stack mit Compose path `docker-compose.portainer.yml` neu anlegen.
+4. Prüfen, dass Portainer in der Stack-Vorschau `ports: - "3001:3001"` zeigt und
+   keinen Abschnitt `networks: proxy` mehr enthält.
 
 ### Portainer sucht `/data/compose/.../.env`
 
@@ -246,10 +206,10 @@ node -e "fetch('http://127.0.0.1:3001/api/health').then(r => r.text()).then(cons
 
 ### NPM zeigt 502 Bad Gateway
 
-- NPM und `serververwaltung` müssen beide mit dem Netzwerk `proxy` verbunden sein.
-- Forward Hostname muss exakt `serververwaltung` lauten.
+- Forward Hostname muss die LAN-IP des Docker-Servers sein, nicht `serververwaltung`.
 - Forward Port ist `3001`, Scheme ist `http`.
-- Nicht `localhost` oder die öffentliche Server-IP als Forward Host verwenden.
+- Nicht `localhost` verwenden: Im NPM-Container würde das auf NPM selbst zeigen.
+- Im Browser zuerst `http://LAN-IP-DES-SERVERS:3001/api/health` testen.
 
 ### Zertifikat kann nicht erstellt werden
 
