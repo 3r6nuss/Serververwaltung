@@ -4,6 +4,16 @@ Diese Anleitung installiert die Serververwaltung direkt aus dem GitHub-Repositor
 Nginx Proxy Manager (NPM) übernimmt Domain, HTTPS und die Weiterleitung. Der im
 normalen `docker-compose.yml` enthaltene Caddy wird dabei nicht verwendet.
 
+> **Fehler `env file /data/compose/.../.env not found`:** Portainer hat in diesem
+> Fall die falsche Datei `docker-compose.yml` geladen. Beim Repository-Stack muss
+> im Feld **Compose path** exakt `docker-compose.portainer.yml` stehen. Die
+> Portainer-Datei enthält kein `env_file` und benötigt keine hochgeladene `.env`.
+
+> **Fehler `network proxy declared as external, but could not be found`:** Vor dem
+> Stack-Deployment unter Portainer `Networks` ein Bridge-Netzwerk mit dem exakten
+> Namen `proxy` erstellen und danach auch den Nginx-Proxy-Manager-Container damit
+> verbinden. Anschließend den Stack erneut deployen.
+
 ## Voraussetzungen
 
 - Ein Linux-Server mit Docker und Portainer im Modus `Docker Standalone`
@@ -91,6 +101,9 @@ Damit lautet die spätere Adresse beispielsweise `server.example.com`.
    docker-compose.portainer.yml
    ```
 
+   Das Feld darf nicht leer bleiben. Portainer verwendet sonst automatisch
+   `docker-compose.yml`, die für das alternative Caddy-Deployment gedacht ist.
+
 8. Unter `Environment variables` die folgenden Werte anlegen:
 
 | Name | Wert |
@@ -164,6 +177,63 @@ Da das Image aus dem Repository gebaut wird, muss Portainer beim Update den aktu
 Git-Stand abrufen und das Image neu bauen.
 
 ## Fehlerdiagnose
+
+### Netzwerk `proxy` wurde nicht gefunden
+
+Die Meldung
+
+```text
+network proxy declared as external, but could not be found
+```
+
+bedeutet, dass die richtige Compose-Datei geladen wurde, das gemeinsam verwendete
+Docker-Netzwerk aber noch fehlt.
+
+**Über Portainer:**
+
+1. Links `Networks` öffnen.
+2. `Add network` anklicken.
+3. Bei `Name` exakt `proxy` eintragen, nur Kleinbuchstaben und ohne Leerzeichen.
+4. Als Driver `bridge` wählen.
+5. Alle anderen Optionen auf Standard lassen und `Create the network` anklicken.
+6. Unter `Containers` den Nginx-Proxy-Manager-App-Container öffnen.
+7. Im Bereich `Connected networks` das Netzwerk `proxy` auswählen und verbinden.
+8. Den Stack `serververwaltung` erneut deployen.
+
+**Alternativ per SSH auf dem Docker-Server:**
+
+```bash
+docker network create proxy
+docker network ls | grep proxy
+```
+
+Danach muss NPM ebenfalls mit diesem Netzwerk verbunden werden. Der genaue
+Containername ist unter Portainer `Containers` sichtbar:
+
+```bash
+docker network connect proxy NAME_DES_NPM_CONTAINERS
+```
+
+Ist der Container bereits verbunden, meldet Docker nur, dass der Endpoint schon
+existiert. Das ist unproblematisch. Das Netzwerk nicht als `overlay` anlegen; diese
+Anleitung verwendet Portainer mit Docker Standalone und ein `bridge`-Netzwerk.
+
+### Portainer sucht `/data/compose/.../.env`
+
+Dieser Fehler entsteht ausschließlich, wenn Portainer die normale
+`docker-compose.yml` statt der Portainer-Datei ausgewählt hat:
+
+1. Den fehlgeschlagenen Stack in Portainer löschen. Dabei keine bestehenden
+   Volumes auswählen oder löschen.
+2. `Stacks` > `Add stack` > `Repository` öffnen.
+3. Repository URL `https://github.com/3r6nuss/Serververwaltung.git` eintragen.
+4. Repository reference `refs/heads/main` eintragen.
+5. Bei **Compose path** exakt `docker-compose.portainer.yml` eintragen.
+6. Die Variablen unter `Environment variables` direkt in Portainer anlegen.
+7. Stack erneut deployen.
+
+Nicht versuchen, eine `.env` nach `/data/compose/...` hochzuladen. Dieses Verzeichnis
+wird von Portainer verwaltet und kann sich bei jedem neuen Stack ändern.
 
 ### Container wird nicht healthy
 
