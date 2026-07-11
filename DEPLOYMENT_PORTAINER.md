@@ -9,7 +9,7 @@ normalen `docker-compose.yml` enthaltene Caddy wird dabei nicht verwendet.
 > im Feld **Compose path** exakt `docker-compose.portainer.yml` stehen. Die
 > Portainer-Datei enthält kein `env_file` und benötigt keine hochgeladene `.env`.
 
-> Die Portainer-Compose-Datei veröffentlicht Port `3001` direkt auf dem Docker-Host.
+> Die Portainer-Compose-Datei veröffentlicht standardmäßig Port `13001` auf dem Docker-Host.
 > Dadurch ist kein vorher angelegtes externes Docker-Netzwerk erforderlich.
 
 ## Voraussetzungen
@@ -39,15 +39,15 @@ durch `.gitignore` ausgeschlossen und darf nicht mit Secrets nach GitHub gelange
 
 ## 1. Erreichbarkeit auf dem Server prüfen
 
-Die Portainer-Datei veröffentlicht die Anwendung auf Port `3001` des Docker-Servers.
+Die Portainer-Datei veröffentlicht die Anwendung standardmäßig auf Port `13001` des Docker-Servers.
 Nach dem Deployment muss die folgende Adresse im lokalen Netz erreichbar sein:
 
 ```text
-http://LAN-IP-DES-SERVERS:3001/api/health
+http://LAN-IP-DES-SERVERS:13001/api/health
 ```
 
 Beispiel: Hat der Server die LAN-IP `192.168.178.50`, lautet die Adresse
-`http://192.168.178.50:3001/api/health`. Port `3001` muss nicht im Router ins Internet
+`http://192.168.178.50:13001/api/health`. Port `13001` muss nicht im Router ins Internet
 weitergeleitet werden. NPM greift innerhalb des Servernetzes darauf zu.
 
 ## 2. Cloudflare-DNS einrichten
@@ -93,6 +93,7 @@ Damit lautet die spätere Adresse beispielsweise `server.example.com`.
 | `FIRE_API_KEY` | API-Key aus dem 24fire Control Panel |
 | `DASHBOARD_PASSWORD` | Starkes Passwort für die Serververwaltung |
 | `AUTH_SECRET` | Lange zufällige Zeichenfolge mit mindestens 32 Bytes |
+| `SERVERVERWALTUNG_HOST_PORT` | Optionaler Host-Port, Standard `13001` |
 | `MET_HEALTH_URL` | Zum Beispiel `https://met.example.com/api/health` |
 | `DISCORD_HEALTH_URL` | Zum Beispiel `https://bot.example.com/api/health` |
 | `LARRYS_HEALTH_URL` | Zum Beispiel `https://larrys.example.com/api/health` |
@@ -111,7 +112,7 @@ nicht in GitHub.
 9. `Deploy the stack` anklicken. Der erste Build kann einige Minuten dauern.
 10. Unter `Containers` warten, bis `serververwaltung` den Status `healthy` erreicht.
 
-Der Container veröffentlicht Host-Port `3001`, damit NPM ihn ohne zusätzliches
+Der Container veröffentlicht Host-Port `13001`, damit NPM ihn ohne zusätzliches
 Docker-Netzwerk erreichen kann.
 
 ## 4. Proxy Host in Nginx Proxy Manager
@@ -122,7 +123,7 @@ Docker-Netzwerk erreichen kann.
    - Domain Names: `server.example.com`
    - Scheme: `http`
    - Forward Hostname / IP: LAN-IP des Docker-Servers, zum Beispiel `192.168.178.50`
-   - Forward Port: `3001`
+   - Forward Port: `13001`
    - `Block Common Exploits`: aktivieren
    - `Websockets Support`: aktivieren
 4. Im Bereich `SSL`:
@@ -170,13 +171,38 @@ network proxy declared as external, but could not be found
 
 bedeutet, dass Portainer noch eine ältere Version von
 `docker-compose.portainer.yml` aus GitHub verwendet. Die aktuelle Datei benötigt
-kein externes Netzwerk mehr und veröffentlicht stattdessen `3001:3001`.
+kein externes Netzwerk mehr und veröffentlicht standardmäßig `13001:3001`.
 
 1. Die aktuellen Änderungen committen und nach GitHub pushen.
 2. Den fehlgeschlagenen Stack löschen, ohne Volumes zu löschen.
 3. Den Repository-Stack mit Compose path `docker-compose.portainer.yml` neu anlegen.
-4. Prüfen, dass Portainer in der Stack-Vorschau `ports: - "3001:3001"` zeigt und
+4. Prüfen, dass Portainer in der Stack-Vorschau den Host-Port `13001` zeigt und
    keinen Abschnitt `networks: proxy` mehr enthält.
+
+### Host-Port ist bereits belegt
+
+Die Meldung
+
+```text
+Bind for 0.0.0.0:PORT failed: port is already allocated
+```
+
+bedeutet, dass bereits ein anderer Container oder Prozess diesen Host-Port nutzt.
+Die aktuelle Portainer-Datei verwendet deshalb standardmäßig `13001`. Falls auch
+dieser Port belegt ist, in Portainer unter `Environment variables` beispielsweise
+Folgendes setzen:
+
+```text
+SERVERVERWALTUNG_HOST_PORT=13002
+```
+
+Danach muss in NPM derselbe Forward Port (`13002`) eingetragen werden. Welcher
+Container einen Port verwendet, lässt sich auf dem Server prüfen mit:
+
+```bash
+docker ps --format "table {{.Names}}\t{{.Ports}}" | grep 3001
+docker ps --format "table {{.Names}}\t{{.Ports}}" | grep 13001
+```
 
 ### Portainer sucht `/data/compose/.../.env`
 
@@ -207,9 +233,9 @@ node -e "fetch('http://127.0.0.1:3001/api/health').then(r => r.text()).then(cons
 ### NPM zeigt 502 Bad Gateway
 
 - Forward Hostname muss die LAN-IP des Docker-Servers sein, nicht `serververwaltung`.
-- Forward Port ist `3001`, Scheme ist `http`.
+- Forward Port ist standardmäßig `13001`, Scheme ist `http`.
 - Nicht `localhost` verwenden: Im NPM-Container würde das auf NPM selbst zeigen.
-- Im Browser zuerst `http://LAN-IP-DES-SERVERS:3001/api/health` testen.
+- Im Browser zuerst `http://LAN-IP-DES-SERVERS:13001/api/health` testen.
 
 ### Zertifikat kann nicht erstellt werden
 
