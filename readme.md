@@ -41,10 +41,18 @@ die Dauer der Verbindung im Speicher gehalten – nie gespeichert und nie gelogg
    AUTH_SECRET=
    # optional:
    PORT=3001
+   MET_HEALTH_URL=https://met.example.com/api/health
+   DISCORD_HEALTH_URL=https://discord.example.com/api/health
+   LARRYS_HEALTH_URL=https://larrys.example.com/api/health
+   POLENSTUBE_HEALTH_URL=https://polenstube.example.com/api/health
+   HEALTH_CHECK_INTERVAL_MS=30000
+   HEALTH_CHECK_TIMEOUT_MS=5000
    ```
 
    Den API-Key findest du im [24fire Control Panel](https://manage.24fire.de) unter
-   deinem Account bzw. dem jeweiligen Server.
+   deinem Account bzw. dem jeweiligen Server. Die Health-URLs müssen vom Prozess der
+   Serververwaltung erreichbar sein. Ohne URL bleibt der Dienst im Dashboard sichtbar
+   und wird als „Nicht konfiguriert“ markiert.
 
 3. **Entwicklung starten** (Frontend auf Port 5174 + API-Proxy auf Port 3001):
 
@@ -72,6 +80,8 @@ die Dauer der Verbindung im Speicher gehalten – nie gespeichert und nie gelogg
 ## Funktionen
 
 - **Dashboard** – Übersicht aller Server mit Status, CPU-/RAM-Auslastung und Ping
+- **Dienstestatus** – Healthchecks für MET, Discord Bot, Larry's und Polenstube mit
+   Antwortzeit, Uptime, P95-Latenz und Ausfallzähler
 - **Server-Detail** – Übersicht, Monitoring, Traffic, Backups, DDoS, Docker & Konsole je Server
 - **Power-Steuerung** – Start / Neustart / Stopp
 - **Backups** – erstellen, wiederherstellen, löschen
@@ -86,6 +96,10 @@ die Dauer der Verbindung im Speicher gehalten – nie gespeichert und nie gelogg
 - **Account** – Kontodaten, Guthaben, 24fire+, Spenden, Affiliate
 
 ## Deployment (Docker + Caddy)
+
+> Für GitHub-Deployment über **Portainer**, **Cloudflare** und **Nginx Proxy Manager**
+> siehe [DEPLOYMENT_PORTAINER.md](DEPLOYMENT_PORTAINER.md). Dafür wird die separate
+> `docker-compose.portainer.yml` ohne Caddy verwendet.
 
 Für den öffentlichen Betrieb liegt ein fertiges Setup mit automatischem HTTPS
 (Caddy + Let's Encrypt) bei – vorausgesetzt, auf dem Server läuft Docker.
@@ -112,6 +126,9 @@ Für den öffentlichen Betrieb liegt ein fertiges Setup mit automatischem HTTPS
    | `DASHBOARD_PASSWORD` | Login-Passwort fürs Dashboard (Pflicht im öffentlichen Betrieb) |
    | `AUTH_SECRET`        | Zufälliges Secret für Login-Tokens (`openssl rand -hex 32`)     |
    | `DOMAIN`             | Deine Domain für HTTPS, z. B. `dashboard.example.com`           |
+   | `*_HEALTH_URL`       | Erreichbarer `/api/health`-Endpunkt des jeweiligen Dienstes     |
+   | `HEALTH_CHECK_INTERVAL_MS` | Prüfintervall in Millisekunden (Standard: `30000`)        |
+   | `HEALTH_CHECK_TIMEOUT_MS`  | Timeout pro Prüfung in Millisekunden (Standard: `5000`)   |
 
 4. **Starten**:
 

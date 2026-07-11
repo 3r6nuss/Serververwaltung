@@ -1,0 +1,38 @@
+services:
+  serververwaltung:
+    build: .
+    container_name: serververwaltung
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      FIRE_API_KEY: ${FIRE_API_KEY}
+      DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD}
+      AUTH_SECRET: ${AUTH_SECRET}
+      MET_HEALTH_URL: ${MET_HEALTH_URL:-}
+      DISCORD_HEALTH_URL: ${DISCORD_HEALTH_URL:-}
+      LARRYS_HEALTH_URL: ${LARRYS_HEALTH_URL:-}
+      POLENSTUBE_HEALTH_URL: ${POLENSTUBE_HEALTH_URL:-}
+      HEALTH_CHECK_INTERVAL_MS: ${HEALTH_CHECK_INTERVAL_MS:-30000}
+      HEALTH_CHECK_TIMEOUT_MS: ${HEALTH_CHECK_TIMEOUT_MS:-5000}
+      HEALTH_MAX_SAMPLES: ${HEALTH_MAX_SAMPLES:-2880}
+    expose:
+      - "3001"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    volumes:
+      - serververwaltung_logs:/app/server/logs
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: true
+    name: proxy
+
+volumes:
+  serververwaltung_logs:

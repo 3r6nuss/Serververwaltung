@@ -69,6 +69,7 @@ async function request(path, { method = 'GET', body } = {}) {
 export const api = {
   // Meta
   health: () => request('/health'),
+  serviceHealth: (refresh = false) => request(`/service-health${refresh ? '?refresh=1' : ''}`),
 
   // Authentifizierung
   authStatus: () => request('/auth/status'),

@@ -14,6 +14,7 @@ import {
   dockerContainerStats,
 } from './ssh.js'
 import { logAccess, getRecent, clientIp } from './logger.js'
+import { checkAllServices, getServiceHealth, startServiceHealthMonitor } from './service-health.js'
 import {
   authRequired,
   verifyPassword,
@@ -29,6 +30,8 @@ const DIST = path.join(ROOT, 'dist')
 
 const PORT = Number(process.env.PORT) || 3001
 const API_KEY = process.env.FIRE_API_KEY || ''
+
+startServiceHealthMonitor()
 
 const app = express()
 app.use(compression())
@@ -75,7 +78,18 @@ const api = express.Router()
 // Meta / Health
 // ---------------------------------------------------------------------------
 api.get('/health', (req, res) => {
-  res.json({ ok: true, configured: Boolean(API_KEY), time: new Date().toISOString() })
+  const serviceHealth = getServiceHealth()
+  res.json({
+    ok: true,
+    status: serviceHealth.status,
+    service: 'serververwaltung',
+    configured: Boolean(API_KEY),
+    time: new Date().toISOString(),
+    uptimeSeconds: Math.floor(process.uptime()),
+    monitoredServices: serviceHealth.services.length,
+    servicesDown: serviceHealth.services.filter((service) => service.status === 'down').length,
+    memory: process.memoryUsage(),
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -102,6 +116,11 @@ api.post('/auth/login', (req, res) => {
 
 // Ab hier sind alle Routen geschützt, sofern DASHBOARD_PASSWORD gesetzt ist.
 api.use(requireAuth)
+
+api.get('/service-health', wrap(async (req, res) => {
+  const force = req.query.refresh === '1'
+  res.json(force ? await checkAllServices() : getServiceHealth())
+}))
 
 // ---------------------------------------------------------------------------
 // Account

@@ -12,6 +12,8 @@ import {
   ChevronRight,
   ServerCog,
   Terminal,
+  Timer,
+  TriangleAlert,
 } from 'lucide-react'
 import { api } from '../lib/api.js'
 import { useAsync, useInterval } from '../lib/hooks.js'
@@ -154,6 +156,83 @@ function ServerCard({ srv, onChanged }) {
   )
 }
 
+const serviceStatus = {
+  up: { label: 'Online', dot: 'online', badge: 'text-emerald-400 ring-emerald-500/30' },
+  degraded: { label: 'Eingeschränkt', dot: 'unknown', badge: 'text-amber-400 ring-amber-500/30' },
+  down: { label: 'Offline', dot: 'offline', badge: 'text-red-400 ring-red-500/30' },
+  unconfigured: { label: 'Nicht konfiguriert', dot: 'unknown', badge: 'text-zinc-400 ring-zinc-600' },
+  unknown: { label: 'Unbekannt', dot: 'unknown', badge: 'text-zinc-400 ring-zinc-600' },
+}
+
+function ServiceHealthSection() {
+  const { data, loading, error, refetch } = useAsync(() => api.serviceHealth(true), [])
+  const refresh = () => refetch()
+  const services = data?.services || []
+  const online = services.filter((service) => service.status === 'up').length
+  const down = services.filter((service) => service.status === 'down').length
+
+  return (
+    <section className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-zinc-100">Dienste</h2>
+          <p className="text-xs text-zinc-500">APIs, Abhängigkeiten und Verfügbarkeit im gespeicherten Messverlauf</p>
+        </div>
+        <Button variant="ghost" onClick={refresh} loading={loading}>
+          <RefreshCw className="h-4 w-4" /> Jetzt prüfen
+        </Button>
+      </div>
+
+      {loading && !data ? (
+        <Loading label="Prüfe Dienste …" />
+      ) : error ? (
+        <ErrorState error={error} onRetry={refresh} />
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <StatCard icon={Activity} label="Online" value={`${online} / ${services.length}`} accent="text-emerald-400" />
+            <StatCard icon={TriangleAlert} label="Offline" value={down} accent={down ? 'text-red-400' : 'text-zinc-500'} />
+            <StatCard icon={Timer} label="Prüfintervall" value={`${Math.round((data?.intervalMs || 0) / 1000)} s`} />
+          </div>
+
+          <Card className="overflow-hidden">
+            <div className="hidden grid-cols-[minmax(180px,1.4fr)_110px_repeat(4,minmax(80px,1fr))] gap-3 border-b border-zinc-800 px-4 py-2 text-[11px] font-medium uppercase text-zinc-500 lg:grid">
+              <span>Dienst</span><span>Status</span><span>Latenz</span><span>Uptime</span><span>P95</span><span>Ausfälle</span>
+            </div>
+            <div className="divide-y divide-zinc-800">
+              {services.map((service) => {
+                const meta = serviceStatus[service.status] || serviceStatus.unknown
+                return (
+                  <div key={service.id} className="grid gap-3 px-4 py-3 lg:grid-cols-[minmax(180px,1.4fr)_110px_repeat(4,minmax(80px,1fr))] lg:items-center">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 font-medium text-zinc-100">
+                        <StatusDot status={meta.dot} /> {service.name}
+                      </div>
+                      <p className="mt-0.5 truncate text-[11px] text-zinc-600">
+                        {service.checkedAt ? `Geprüft ${relativeTime(service.checkedAt)}` : service.message}
+                      </p>
+                    </div>
+                    <Badge className={cn('w-fit ring-1', meta.badge)}>{meta.label}</Badge>
+                    <div className="grid grid-cols-4 gap-3 text-sm lg:contents">
+                      <span title="Antwortzeit"><span className="text-zinc-600 lg:hidden">Latenz </span>{service.latencyMs != null ? `${service.latencyMs} ms` : '–'}</span>
+                      <span title="Verfügbarkeit"><span className="text-zinc-600 lg:hidden">Uptime </span>{service.statistics.uptimePercent != null ? `${service.statistics.uptimePercent} %` : '–'}</span>
+                      <span title="95. Perzentil"><span className="text-zinc-600 lg:hidden">P95 </span>{service.statistics.p95LatencyMs != null ? `${service.statistics.p95LatencyMs} ms` : '–'}</span>
+                      <span title="Fehlgeschlagene Prüfungen"><span className="text-zinc-600 lg:hidden">Ausfälle </span>{service.statistics.outages}</span>
+                    </div>
+                    {service.message && service.status === 'down' && (
+                      <p className="text-xs text-red-400 lg:col-span-6">{service.message}</p>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </Card>
+        </>
+      )}
+    </section>
+  )
+}
+
 export default function Dashboard() {
   const [auto, setAuto] = useState(true)
   const { data, loading, error, refetch } = useAsync(() => api.overview(), [])
@@ -188,6 +267,8 @@ export default function Dashboard() {
           </Button>
         </div>
       </div>
+
+      <ServiceHealthSection />
 
       {notConfigured ? (
         <SetupGuide />
