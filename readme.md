@@ -47,6 +47,10 @@ die Dauer der Verbindung im Speicher gehalten – nie gespeichert und nie gelogg
    POLENSTUBE_HEALTH_URL=https://polenstube.example.com/api/health
    HEALTH_CHECK_INTERVAL_MS=30000
    HEALTH_CHECK_TIMEOUT_MS=5000
+   DISCORD_UPDATE_WEBHOOK_URL=https://discord.com/api/webhooks/...
+   GITHUB_WEBHOOK_SECRET=ein_langes_zufälliges_secret
+   GITHUB_UPDATE_REPOSITORIES=organisation/met-app,organisation/larrys
+   GITHUB_UPDATE_BRANCHES=main,master
    ```
 
    Den API-Key findest du im [24fire Control Panel](https://manage.24fire.de) unter
@@ -92,6 +96,7 @@ die Dauer der Verbindung im Speicher gehalten – nie gespeichert und nie gelogg
 - **Zugriffe / Logging** – Protokoll aller SSH-, Docker- und Login-Zugriffe
   (Zeit, IP, Aktion, Host, Benutzer, Ergebnis)
 - **Login** – optionaler Passwortschutz mit Token; sichert API, SSH-Konsole & Docker ab
+- **Update-Freigaben** – GitHub-Pushes prüfen, als Discord-Embed veröffentlichen oder verwerfen
 - **Domains & DNS** – DNS-Einträge anlegen, bearbeiten, löschen
 - **Account** – Kontodaten, Guthaben, 24fire+, Spenden, Affiliate
 
@@ -166,3 +171,31 @@ Composite-Komponenten (Loading, ErrorState, StatCard, UsageBar, Modal, …) baue
 `src/components/ui.jsx` darauf auf.
 
 > Hinweis: Einige Endpunkte (z. B. Monitoring) setzen ein aktives **24fire+**-Abo voraus.
+
+## GitHub-Updates im Discord-Kanal
+
+Die Serververwaltung sammelt Updates aller Websites zentral zur Freigabe. Erst nach
+einem Klick auf `Updates > Veröffentlichen` sendet sie die Commit-Nachrichten in den
+Discord-Kanal. Unwichtige Änderungen können stattdessen verworfen werden. Der
+Discord-Webhook tritt dabei unter dem Namen des jeweiligen GitHub-Repositories auf;
+die einzelnen Discord-Bots brauchen dafür keine zusätzliche Logik.
+
+1. In Discord unter `Kanal bearbeiten > Integrationen > Webhooks` einen Webhook für
+   den Update-Kanal erstellen und dessen URL als `DISCORD_UPDATE_WEBHOOK_URL` setzen.
+2. Ein langes zufälliges Secret erzeugen, zum Beispiel mit `openssl rand -hex 32`,
+   und als `GITHUB_WEBHOOK_SECRET` setzen.
+3. Die erlaubten Repositories vollständig in `GITHUB_UPDATE_REPOSITORIES` eintragen,
+   zum Beispiel `organisation/met-app,organisation/larrys,organisation/polenstube`.
+4. In jedem Repository unter `Settings > Webhooks > Add webhook` eintragen:
+   - Payload URL: `https://DEINE-SERVERVERWALTUNG/api/webhooks/github`
+   - Content type: `application/json`
+   - Secret: derselbe Wert wie `GITHUB_WEBHOOK_SECRET`
+   - Events: `Just the push event`
+5. Serververwaltung neu starten. GitHubs `Ping` muss danach mit HTTP 200 beantwortet
+   werden. Pushes auf `main` oder `master` erscheinen unter `Updates` zur Freigabe.
+6. Den Inhalt prüfen und `Veröffentlichen` oder `Verwerfen` wählen. Vor dem Senden
+   zeigt die Verwaltung einen zusätzlichen Bestätigungsdialog.
+
+Weitere produktive Branches lassen sich kommasepariert über
+`GITHUB_UPDATE_BRANCHES` freigeben. Andere Events, Branch-Löschungen und doppelt
+zugestellte GitHub-Events werden ohne Discord-Nachricht quittiert.

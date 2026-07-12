@@ -118,6 +118,11 @@ export const api = {
   // Zugriffs-Logs (SSH & Docker)
   logs: (type) => request(type ? `/logs?type=${encodeURIComponent(type)}` : '/logs'),
 
+  // Freigabe von GitHub-Updates für den Discord-Kundenkanal
+  githubUpdates: () => request('/github-updates'),
+  approveGithubUpdate: (id) => request(`/github-updates/${id}/approve`, { method: 'POST' }),
+  dismissGithubUpdate: (id) => request(`/github-updates/${id}/dismiss`, { method: 'POST' }),
+
   // DNS
   dns: (id) => request(`/domain/${id}/dns`),
   addDns: (id, record) => request(`/domain/${id}/dns`, { method: 'PUT', body: record }),

@@ -94,6 +94,10 @@ Damit lautet die spätere Adresse beispielsweise `server.example.com`.
 | `DASHBOARD_PASSWORD` | Starkes Passwort für die Serververwaltung |
 | `AUTH_SECRET` | Lange zufällige Zeichenfolge mit mindestens 32 Bytes |
 | `SERVERVERWALTUNG_HOST_PORT` | Optionaler Host-Port, Standard `13001` |
+| `DISCORD_UPDATE_WEBHOOK_URL` | Discord-Webhook des zentralen Update-Kanals |
+| `GITHUB_WEBHOOK_SECRET` | Gemeinsames Secret für die GitHub-Signaturprüfung |
+| `GITHUB_UPDATE_REPOSITORIES` | Erlaubte Repositories, kommasepariert als `owner/repo` |
+| `GITHUB_UPDATE_BRANCHES` | Veröffentlichte Branches, Standard `main,master` |
 | `MET_HEALTH_URL` | Zum Beispiel `https://met.example.com/api/health` |
 | `DISCORD_HEALTH_URL` | Zum Beispiel `https://bot.example.com/api/health` |
 | `LARRYS_HEALTH_URL` | Zum Beispiel `https://larrys.example.com/api/health` |

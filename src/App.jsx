@@ -6,6 +6,7 @@ import ServerDetail from './pages/ServerDetail.jsx'
 import Domains from './pages/Domains.jsx'
 import Account from './pages/Account.jsx'
 import Logs from './pages/Logs.jsx'
+import Updates from './pages/Updates.jsx'
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
           <Route path="/server/:id" element={<ServerDetail />} />
           <Route path="/domains" element={<Domains />} />
           <Route path="/logs" element={<Logs />} />
+          <Route path="/updates" element={<Updates />} />
           <Route path="/account" element={<Account />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

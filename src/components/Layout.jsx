@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { Flame, LayoutDashboard, Globe, UserRound, Menu, X, ExternalLink, ScrollText, LogOut } from 'lucide-react'
+import { Flame, LayoutDashboard, Globe, UserRound, Menu, X, ExternalLink, ScrollText, LogOut, Megaphone } from 'lucide-react'
 import { cn } from '../lib/format.js'
 import { api, getToken } from '../lib/api.js'
 import { useAsync } from '../lib/hooks.js'
@@ -9,6 +9,7 @@ import { StatusDot } from './ui.jsx'
 const NAV = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/domains', label: 'Domains & DNS', icon: Globe },
+  { to: '/updates', label: 'Updates', icon: Megaphone },
   { to: '/logs', label: 'Zugriffe', icon: ScrollText },
   { to: '/account', label: 'Account', icon: UserRound },
 ]

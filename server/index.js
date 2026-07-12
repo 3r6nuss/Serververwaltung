@@ -16,6 +16,12 @@ import {
 import { logAccess, getRecent, clientIp } from './logger.js'
 import { checkAllServices, getServiceHealth, startServiceHealthMonitor } from './service-health.js'
 import {
+  handleGithubUpdate,
+  listGithubUpdates,
+  approveGithubUpdate,
+  dismissGithubUpdate,
+} from './github-updates.js'
+import {
   authRequired,
   verifyPassword,
   issueToken,
@@ -35,7 +41,11 @@ startServiceHealthMonitor()
 
 const app = express()
 app.use(compression())
-app.use(express.json())
+app.use(express.json({
+  verify: (req, _res, buffer) => {
+    if (req.originalUrl.startsWith('/api/webhooks/github')) req.rawBody = Buffer.from(buffer)
+  },
+}))
 
 // ---------------------------------------------------------------------------
 // Hilfsfunktionen
@@ -114,8 +124,15 @@ api.post('/auth/login', (req, res) => {
   res.json({ ok: true, token: issueToken() })
 })
 
+// GitHub authentifiziert diese öffentliche Route über die HMAC-Signatur des Payloads.
+api.post('/webhooks/github', wrap(handleGithubUpdate))
+
 // Ab hier sind alle Routen geschützt, sofern DASHBOARD_PASSWORD gesetzt ist.
 api.use(requireAuth)
+
+api.get('/github-updates', listGithubUpdates)
+api.post('/github-updates/:id/approve', wrap(approveGithubUpdate))
+api.post('/github-updates/:id/dismiss', dismissGithubUpdate)
 
 api.get('/service-health', wrap(async (req, res) => {
   const force = req.query.refresh === '1'
